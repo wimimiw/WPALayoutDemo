@@ -12,7 +12,7 @@ namespace WFALayoutDemo
 {
     public partial class Form1 : Form
     {  
-        private Size beforeClientSize = Size.Empty;
+        Size beforeClientSize = Size.Empty;
         DataTable dataTable2 = new DataTable();
 
         struct bakInfo
@@ -48,12 +48,14 @@ namespace WFALayoutDemo
                 {
                     Button bt = sender as Button;
                     bt.BackColor = Color.Yellow;
+                    bt.ForeColor = Color.Green;
                 });
 
                 btn[i].MouseLeave += new EventHandler(delegate(object sender, EventArgs e)
                 {
                     Button bt = sender as Button;
                     bt.BackColor = Color.Teal;
+                    bt.ForeColor = Color.White;
                 });
                 //btn[i].Text = btn[i].Width + "," + btn[i].Height + "," + btn[i].Location.X + "," + btn[i].Location.Y;
 			}           
@@ -67,9 +69,7 @@ namespace WFALayoutDemo
                 AutoScaleInit(item);
             }
 
-            this.xY2dPlotEx1.SetAlwaysMinorLine(true);
-            this.xY2dPlotEx1.SetLineEnalbe(true, 0, 100f, Color.Purple);
-
+            this.xY2dPlotEx1.SetAlwaysMinorLine(true);            
             this.xY2dPlotEx1.SetMarkShape(0, jcXY2dPlotEx.MarkShape.markTriangle, true);
             this.xY2dPlotEx1.SetMarkVisible(0, true);
             this.xY2dPlotEx1.SetYUnitOffset(0);
@@ -88,14 +88,13 @@ namespace WFALayoutDemo
                 return strValue;
             });
 
+            this.xY2dPlotEx1.SetLineEnalbe(true, 0, 100f, Color.Purple);
             this.xY2dPlotEx1.SetLimitEnalbe(true, -10, Color.PeachPuff);
             this.xY2dPlotEx1.SetMarkColor(0, Color.WhiteSmoke);
-            this.xY2dPlotEx1.SetAlwaysMinorLine(true);
-            this.xY2dPlotEx1.SetChannelIcon(0, jcXY2dPlotEx.CurveIconStyle.cisHollowCircle, true);
+            //this.xY2dPlotEx1.SetChannelIcon(0, jcXY2dPlotEx.CurveIconStyle.cisHollowCircle, true);
             this.xY2dPlotEx1.MajorLineWidth = this.xY2dPlotEx1.MajorLineWidth;
             this.xY2dPlotEx1.SetSampling(true);
             this.xY2dPlotEx1.Resume();
-            this.xY2dPlotEx1.Refresh();
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -114,21 +113,17 @@ namespace WFALayoutDemo
             this.dataGridView2.AllowUserToResizeRows = false;
             this.dataGridView2.AllowUserToAddRows = false;
 
-                dataTable2.Columns.Add("NO.", typeof(int));
-                dataTable2.Columns.Add("P1(dBm)", typeof(int));
-                dataTable2.Columns.Add("F1(MHz)", typeof(int));
-                dataTable2.Columns.Add("P2(dBm)", typeof(int));
-                dataTable2.Columns.Add("F2(MHz)", typeof(int));
-                dataTable2.Columns.Add("Im_F(MHz)", typeof(int));
-                dataTable2.Columns.Add("Im_V(dBm)", typeof(int));            
+            dataTable2.Columns.Add("NO.", typeof(int));
+            dataTable2.Columns.Add("P1(dBm)", typeof(int));
+            dataTable2.Columns.Add("F1(MHz)", typeof(int));
+            dataTable2.Columns.Add("P2(dBm)", typeof(int));
+            dataTable2.Columns.Add("F2(MHz)", typeof(int));
+            dataTable2.Columns.Add("Im_F(MHz)", typeof(int));
+            dataTable2.Columns.Add("Im_V(dBm)", typeof(int));            
 
             for (int i = 0; i < 20; i++)
             {
-                dataTable2.Rows.Add(i,i,i,i,i,i,i);
-                //for (int j = 0; j < dataTable2.Columns.Count; j++)
-                //{
-                //    dataTable2.Rows[i][j] = i*j;  
-                //}                  
+                dataTable2.Rows.Add(i,i,i,i,i,i,i);     
             }
 
             this.dataGridView2.DataSource = dataTable2;
@@ -151,7 +146,8 @@ namespace WFALayoutDemo
             {
                 AutoScaleHandle(item);
             }
-
+            //重绘，特例
+            this.xY2dPlotEx1.MajorLineWidth = this.xY2dPlotEx1.MajorLineWidth;
             //this.Text = this.Width + "," + this.Height;
             //this.Text = this.tabPage3.ClientSize.Width + "," + this.tabPage3.ClientSize.Height;
             this.Update();
@@ -180,15 +176,17 @@ namespace WFALayoutDemo
 
         void AutoScaleHandle(Control control)
         {            
-                bakInfo beginResizeSize = (bakInfo)control.Parent.Tag;
-                Size endResizeSize = control.Parent.ClientSize;               
-                float ScaleLen = (float)endResizeSize.Width / beginResizeSize.s.Width;
-                float ScaleLocal = (float)endResizeSize.Height / beginResizeSize.s.Height;
-                control.Width = (int)Math.Round(((bakInfo)(control.Tag)).s.Width * ScaleLen);
-                control.Height = (int)Math.Round(((bakInfo)(control.Tag)).s.Height * ScaleLocal);
-                control.Left = (int)Math.Round(((bakInfo)(control.Tag)).p.X * ScaleLen);
-                control.Top = (int)Math.Round(((bakInfo)(control.Tag)).p.Y * ScaleLocal);
-                control.Font = new Font(control.Font.FontFamily, ((bakInfo)(control.Tag)).f.Size * Math.Min(ScaleLocal, ScaleLen));
+            bakInfo beginResizeSize = (bakInfo)control.Parent.Tag;
+            bakInfo biCtl = (bakInfo)control.Tag;
+
+            Size endResizeSize = control.Parent.ClientSize;               
+            float ScaleLen = (float)endResizeSize.Width / beginResizeSize.s.Width;
+            float ScaleLocal = (float)endResizeSize.Height / beginResizeSize.s.Height;
+            control.Width = (int)Math.Round(biCtl.s.Width * ScaleLen);
+            control.Height = (int)Math.Round(biCtl.s.Height * ScaleLocal);
+            control.Left = (int)Math.Round(biCtl.p.X * ScaleLen);
+            control.Top = (int)Math.Round(biCtl.p.Y * ScaleLocal);
+            control.Font = new Font(control.Font.FontFamily, biCtl.f.Size * Math.Min(ScaleLocal, ScaleLen));
                         
             //if (control.GetType() == typeof(Button))
             //    control.Text = control.Width + "," + control.Height + "," + control.Left + "," + control.Top;            
@@ -206,10 +204,7 @@ namespace WFALayoutDemo
         {
             if (WindowState == FormWindowState.Maximized)
             {
-                //最大化时所需的操作 
-                //OnResizeBegin(null);
-                Form1_Resize(null,null);
-                //MessageBox.Show("max");
+                Form1_Resize(null,null);                
             }
             
             base.OnResize(e);
@@ -234,6 +229,14 @@ namespace WFALayoutDemo
             table.Rows.Add(10, "Hydralazine", "Christoff", DateTime.Now);
             table.Rows.Add(21, "Combivent", "Janet", DateTime.Now);
             table.Rows.Add(100, "Dilantin", "Melanie", DateTime.Now);
+
+            this.dataGridView1.DataSource = table;
+
+            for (int i = 0; i < table.Columns.Count; i++)
+            {
+                this.dataGridView1.Columns[i].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            }
+
             return table;
         }
 
@@ -276,16 +279,15 @@ namespace WFALayoutDemo
             List<PointF> lpt = new List<PointF>();
             Random rd = new Random();
 
-            for (int i = -10; i < 100; i++)
+            for (float i = -10f; i < 100f; i+=0.05f)
             {
-                if(i == 50)
+                if(i >= 50f && i <= 50.1f)
                     lpt.Add(new PointF(i, rd.Next(64,65)));
                 else
                     lpt.Add(new PointF(i, rd.Next(-10, 10)));
             }
 
             this.xY2dPlotEx1.Add(lpt.ToArray(), 0, 0);
-            //this.xY2dPlotEx1.Peak();
             this.xY2dPlotEx1.Refresh();
         }
 
