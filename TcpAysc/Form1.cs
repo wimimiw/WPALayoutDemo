@@ -12,6 +12,8 @@ namespace TcpAysc
 {
     public partial class Form1 : Form
     {
+        TcpServer ts;
+
         public Form1()
         {
             InitializeComponent();
@@ -19,7 +21,7 @@ namespace TcpAysc
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            TcpServer ts = new TcpServer("127.0.0.1",4000);
+            ts = new TcpServer("127.0.0.1",4000);
             ts.OnClientCall += ts_OnClientCall;
             ts.Start();
         }
@@ -32,9 +34,8 @@ namespace TcpAysc
             
             }));
 
-            string tst = "ABCDEFGH";
-
-            tc.GetStream().Write(Encoding.ASCII.GetBytes(tst), 0, tst.Length);
+            ts.Send(tc, "ABCDEFGH");
+            //tc.GetStream().Write(Encoding.ASCII.GetBytes(tst), 0, tst.Length);
             //throw new NotImplementedException();
         }
     }
