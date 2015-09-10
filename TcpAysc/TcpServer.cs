@@ -12,13 +12,20 @@ namespace TcpAysc
         object __objLock = new object();
         TcpListener __tcpListener;
         List<TcpClient> __tcpClientList;
+
         Dictionary<TcpClient, List<Byte>> __dtTst = new Dictionary<TcpClient, List<Byte>>();
         Dictionary<TcpClient, Byte[]> __dtRev = new Dictionary<TcpClient, Byte[]>();
+        Dictionary<TcpClient, StringBuilder> __dtRevs = new Dictionary<TcpClient, StringBuilder>();
+        Dictionary<TcpClient, ManualResetEvent> __dtMRE = new Dictionary<TcpClient, ManualResetEvent>();
+
         public delegate void OnClientCallEventHandel(TcpClient tc,string str);
         public delegate void OnClientCloseEventHandel(TcpClient tc);
-        public event OnClientCallEventHandel OnClientCall;
+        public delegate void OnClientAccpectEventHandel(TcpClient tc);
+        public event OnClientCallEventHandel OnClientRead;
         public event OnClientCloseEventHandel OnClientClose;
+        public event OnClientAccpectEventHandel OnClientAccepct;
 
+        public event OnClientCallEventHandel OnClientThreadRead;
         /// <summary>
         /// 
         /// </summary>
@@ -45,6 +52,39 @@ namespace TcpAysc
                 __tcpListener.Start();
                 //注册异步中断处理
                 __tcpListener.BeginAcceptTcpClient(new AsyncCallback(AsyncCallBackAccept), __tcpListener);
+
+                Thread thrd = new Thread(new ThreadStart(delegate
+                {
+                    TcpClient tc;
+
+                    while (true)
+                    {
+                        if (this.__tcpClientList.Count > 0)
+                        {
+                            for (int i = 0; i < this.__tcpClientList.Count; i++)
+                            {
+                                tc = this.__tcpClientList[i];
+
+                                if (this.__dtMRE[tc].WaitOne(0))
+                                {//线程安全 必须 0ms wait  
+                                    this.__dtMRE[tc].Reset();
+
+                                    if (this.OnClientThreadRead != null)
+                                        this.OnClientThreadRead(tc, this.__dtRevs[tc].ToString());
+                                }
+                            }
+
+                            Thread.Sleep(20);
+                        }
+                        else
+                        {
+                            Thread.Sleep(100);
+                        }
+                    }
+
+                }));
+
+                thrd.Start();
             }
             catch
             {
@@ -72,13 +112,21 @@ namespace TcpAysc
             {
                 TcpListener tl = iar.AsyncState as TcpListener;
                 TcpClient tc = tl.EndAcceptTcpClient(iar);
-                this.__tcpClientList.Add(tc);
+                
                 Byte[] buf = new Byte[512];
-                Byte[] tbuf = new Byte[512];
+                //Byte[] tbuf = new Byte[512];
+                this.__tcpClientList.Add(tc);
                 this.__dtRev.Add(tc, buf);
                 this.__dtTst.Add(tc, new List<Byte>());
+                this.__dtRevs.Add(tc,new StringBuilder(512));
+                this.__dtMRE.Add(tc, new ManualResetEvent(false));
+
                 tc.GetStream().BeginRead(buf,0,buf.Length,new AsyncCallback(AsyncCallBackRead),tc);
                 //tc.GetStream().BeginWrite(tbuf, 0, 0, new AsyncCallback(AsyncCallBackWrite), tc);
+
+                if (OnClientAccepct != null)
+                    OnClientAccepct(tc);
+
                 //注册异步中断处理
                 tl.BeginAcceptTcpClient(new AsyncCallback(AsyncCallBackAccept), tl);
             }
@@ -116,19 +164,32 @@ namespace TcpAysc
                 int revCnt = ns.EndRead(iar);
                 Byte[] buf = __dtRev[tc];
                 string data = "";
+                
+                data = String.Concat(data, Encoding.ASCII.GetString(buf, 0, revCnt));
 
-                data = String.Concat(data, Encoding.ASCII.GetString(buf, 0, revCnt));                
+                this.__dtRevs[tc] = new StringBuilder(data);
+
                 ns.BeginRead(buf, 0, buf.Length, new AsyncCallback(AsyncCallBackRead), tc);
 
-                if (this.OnClientCall != null) this.OnClientCall(tc,data);
+                if (this.OnClientRead != null) 
+                    this.OnClientRead(tc,data);
+
+                this.__dtMRE[tc].Set();
             }
             catch
             {
                 TcpClient tc = iar.AsyncState as TcpClient;
-                this.__tcpClientList.Remove(tc);
-                if (this.OnClientClose != null) this.OnClientClose(tc);
 
-                if(tc!=null)
+                this.__tcpClientList.Remove(tc);
+                this.__dtRev.Remove(tc);
+                this.__dtTst.Remove(tc);
+                this.__dtMRE.Remove(tc);
+                this.__dtRevs.Remove(tc);
+
+                if (this.OnClientClose != null) 
+                    this.OnClientClose(tc);
+
+                if (tc != null)
                     tc.Close();
             }
         }
