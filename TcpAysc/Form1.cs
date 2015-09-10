@@ -23,20 +23,27 @@ namespace TcpAysc
         {
             ts = new TcpServer("127.0.0.1",4000);
             ts.OnClientCall += ts_OnClientCall;
+            ts.OnClientClose += ts_OnClientClose;
             ts.Start();
+        }
+
+        void ts_OnClientClose(TcpClient tc)
+        {
+            this.Invoke(new EventHandler(delegate
+            {
+                this.listBox1.Items.Add(tc.Client.LocalEndPoint + "——" + tc.Client.RemoteEndPoint + ":CLOSE!");
+
+            }));
+            //throw new NotImplementedException();
         }
 
         void ts_OnClientCall(TcpClient tc, string str)
         {
             this.Invoke(new EventHandler(delegate {
-
-                this.listBox1.Items.Add(tc.Client.ToString()+":"+str);
-            
+                this.listBox1.Items.Add(tc.Client.LocalEndPoint+"——"+tc.Client.RemoteEndPoint+":"+str);            
             }));
 
-            ts.Send(tc, "ABCDEFGH");
-            //tc.GetStream().Write(Encoding.ASCII.GetBytes(tst), 0, tst.Length);
-            //throw new NotImplementedException();
+            ts.Send(tc, "Yours = " + tc.Client.RemoteEndPoint+"\n\r");
         }
     }
 }

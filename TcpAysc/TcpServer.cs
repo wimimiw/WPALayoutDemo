@@ -15,7 +15,9 @@ namespace TcpAysc
         Dictionary<TcpClient, List<Byte>> __dtTst = new Dictionary<TcpClient, List<Byte>>();
         Dictionary<TcpClient, Byte[]> __dtRev = new Dictionary<TcpClient, Byte[]>();
         public delegate void OnClientCallEventHandel(TcpClient tc,string str);
+        public delegate void OnClientCloseEventHandel(TcpClient tc);
         public event OnClientCallEventHandel OnClientCall;
+        public event OnClientCloseEventHandel OnClientClose;
 
         /// <summary>
         /// 
@@ -26,25 +28,6 @@ namespace TcpAysc
         {
             __tcpClientList = new List<TcpClient>();
             __tcpListener = new TcpListener(IPAddress.Parse(ip),port);
-
-            Thread thrd = new Thread(new ThreadStart(delegate {
-
-                while (true)
-                {
-                    //foreach (TcpClient item in this.__tcpClientList)
-                    //{
-                    //    if (!item.Connected)
-                    //    {
-                    //        item.Close();
-                    //        this.__tcpClientList.Remove(item);
-                    //    }
-                    //}
-
-                    Thread.Sleep(50);
-                }
-            }));
-
-            thrd.Start();
         }
 
         ~TcpServer()
@@ -115,12 +98,7 @@ namespace TcpAysc
                 TcpClient tc = iar.AsyncState as TcpClient;
                 NetworkStream ns = tc.GetStream();
                 ns.EndWrite(iar);
-
-                lock(this.__objLock)
-                {
-                    ns.BeginWrite(this.__dtTst[tc].ToArray(), 0, this.__dtTst[tc].Count, new AsyncCallback(AsyncCallBackWrite), tc);
-                    this.__dtTst[tc].Clear();
-                }
+                this.__dtTst[tc].Clear();
             }
             catch
             {
@@ -146,7 +124,12 @@ namespace TcpAysc
             }
             catch
             {
- 
+                TcpClient tc = iar.AsyncState as TcpClient;
+                this.__tcpClientList.Remove(tc);
+                if (this.OnClientClose != null) this.OnClientClose(tc);
+
+                if(tc!=null)
+                    tc.Close();
             }
         }
     }
