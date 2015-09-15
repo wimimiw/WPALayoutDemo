@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Windows.Forms;
 
-namespace TcpAysc
+namespace TcpAsync
 {
     static class Program
     {

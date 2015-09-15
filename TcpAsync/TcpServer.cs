@@ -5,14 +5,15 @@ using System.Net.Sockets;
 using System.Net;
 using System.Threading;
 
-namespace TcpAysc
+namespace TcpAsync
 {
     public class TcpServer
     {
         object __objLock = new object();
         TcpListener __tcpListener;
-        List<TcpClient> __tcpClientList;
+        List<TcpClient> __clientList;
 
+        //Dictionary<int, List<Byte>> __dtTst = new Dictionary<int, List<Byte>>();
         Dictionary<TcpClient, List<Byte>> __dtTst = new Dictionary<TcpClient, List<Byte>>();
         Dictionary<TcpClient, Byte[]> __dtRev = new Dictionary<TcpClient, Byte[]>();
         Dictionary<TcpClient, StringBuilder> __dtRevs = new Dictionary<TcpClient, StringBuilder>();
@@ -33,13 +34,14 @@ namespace TcpAysc
         /// <param name="port"></param>
         public TcpServer(string ip,int port)
         {
-            __tcpClientList = new List<TcpClient>();
+            __clientList = new List<TcpClient>();
             __tcpListener = new TcpListener(IPAddress.Parse(ip),port);
         }
 
         ~TcpServer()
         {
-            __tcpListener.Stop();
+            if(__tcpListener!=null)
+                __tcpListener.Stop();
         }
 
         /// <summary>
@@ -59,12 +61,14 @@ namespace TcpAysc
 
                     while (true)
                     {
-                        if (this.__tcpClientList.Count > 0)
+                        if (this.__clientList.Count > 0)
                         {
-                            for (int i = 0; i < this.__tcpClientList.Count; i++)
+                            for (int i = 0; i < this.__clientList.Count; i++)
                             {
-                                tc = this.__tcpClientList[i];
-
+                                tc = this.__clientList[i];
+                                
+                                if( tc == null || !this.__dtMRE.ContainsKey(tc))continue;
+                                
                                 if (this.__dtMRE[tc].WaitOne(0))
                                 {//线程安全 必须 0ms wait  
                                     this.__dtMRE[tc].Reset();
@@ -84,7 +88,7 @@ namespace TcpAysc
 
                 }));
 
-                thrd.Start();
+                //thrd.Start();
             }
             catch
             {
@@ -115,7 +119,7 @@ namespace TcpAysc
                 
                 Byte[] buf = new Byte[512];
                 //Byte[] tbuf = new Byte[512];
-                this.__tcpClientList.Add(tc);
+                this.__clientList.Add(tc);
                 this.__dtRev.Add(tc, buf);
                 this.__dtTst.Add(tc, new List<Byte>());
                 this.__dtRevs.Add(tc,new StringBuilder(512));
@@ -180,11 +184,14 @@ namespace TcpAysc
             {
                 TcpClient tc = iar.AsyncState as TcpClient;
 
-                this.__tcpClientList.Remove(tc);
-                this.__dtRev.Remove(tc);
-                this.__dtTst.Remove(tc);
-                this.__dtMRE.Remove(tc);
-                this.__dtRevs.Remove(tc);
+                if (!tc.Client.Connected)
+                {
+                    this.__dtRev.Remove(tc);
+                    this.__dtTst.Remove(tc);
+                    this.__dtMRE.Remove(tc);
+                    this.__dtRevs.Remove(tc);
+                    //this.__clientList.Remove(tc);
+                }
 
                 if (this.OnClientClose != null) 
                     this.OnClientClose(tc);
