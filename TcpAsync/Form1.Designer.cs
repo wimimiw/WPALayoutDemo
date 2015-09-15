@@ -38,11 +38,14 @@
             // 
             // listBox1
             // 
+            this.listBox1.BackColor = System.Drawing.SystemColors.InfoText;
+            this.listBox1.Font = new System.Drawing.Font("Microsoft YaHei", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.listBox1.ForeColor = System.Drawing.SystemColors.Info;
             this.listBox1.FormattingEnabled = true;
-            this.listBox1.ItemHeight = 12;
+            this.listBox1.ItemHeight = 17;
             this.listBox1.Location = new System.Drawing.Point(12, 12);
             this.listBox1.Name = "listBox1";
-            this.listBox1.Size = new System.Drawing.Size(637, 208);
+            this.listBox1.Size = new System.Drawing.Size(642, 208);
             this.listBox1.TabIndex = 0;
             // 
             // timer1
@@ -52,11 +55,14 @@
             // 
             // listBox2
             // 
+            this.listBox2.BackColor = System.Drawing.SystemColors.InfoText;
+            this.listBox2.Font = new System.Drawing.Font("Microsoft YaHei", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.listBox2.ForeColor = System.Drawing.SystemColors.Info;
             this.listBox2.FormattingEnabled = true;
-            this.listBox2.ItemHeight = 12;
+            this.listBox2.ItemHeight = 17;
             this.listBox2.Location = new System.Drawing.Point(12, 226);
             this.listBox2.Name = "listBox2";
-            this.listBox2.Size = new System.Drawing.Size(637, 208);
+            this.listBox2.Size = new System.Drawing.Size(642, 208);
             this.listBox2.TabIndex = 1;
             // 
             // button1
@@ -83,7 +89,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(727, 445);
+            this.ClientSize = new System.Drawing.Size(724, 445);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.listBox2);

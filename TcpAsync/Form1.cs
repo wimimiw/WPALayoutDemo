@@ -50,6 +50,7 @@ namespace TcpAsync
             this.Invoke(new EventHandler(delegate
             {
                 this.listBox1.Items.Add("SERVER : "+tc.Client.RemoteEndPoint + ":ACCPECT!");
+                this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;
             }));
             //throw new NotImplementedException();
         }
@@ -58,10 +59,8 @@ namespace TcpAsync
         {//此函数不建议处理耗时任务，否则会影响再次接收
             this.Invoke(new EventHandler(delegate
             {
-                if(tc.Client.Connected)
-                    this.listBox1.Items.Add(tc.Client.RemoteEndPoint + ":CLOSE!");
-                else
-                    this.listBox1.Items.Add(":CLOSE!");
+                this.listBox1.Items.Add("SERVER : " + tc.Client.RemoteEndPoint + " : CLOSE!");
+                this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;
             }));
             //throw new NotImplementedException();
         }
@@ -70,24 +69,22 @@ namespace TcpAsync
         {//此函数不建议处理耗时任务，否则会影响再次接收
             this.Invoke(new EventHandler(delegate
             {
-                if (tc.Client.Connected)
-                    this.listBox1.Items.Add("SERVER : " + tc.Client.RemoteEndPoint + ":" + str);
-                else
-                    this.listBox1.Items.Add("SERVER :" + str);
+                this.listBox1.Items.Add("SERVER : " + tc.Client.RemoteEndPoint + " : " + str);
+                this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;
             }));
 
-            __TcpServer.Send(tc, "Yours\n\r");
+            __TcpServer.Send(tc, str);
         }
 
         private void timer1_Tick(object sender, EventArgs e)
         {
-            this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;
-            this.listBox2.SelectedIndex = this.listBox2.Items.Count - 1;
+            //this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;
+            //this.listBox2.SelectedIndex = this.listBox2.Items.Count - 1;
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
-            TcpClient[] tcpClient = new TcpClient[1000];
+            TcpClient[] tcpClient = new TcpClient[100];
 
             for (int i = 0; i < tcpClient.Length; i++)
             {
@@ -102,27 +99,45 @@ namespace TcpAsync
 
             Thread thrd = new Thread(new ThreadStart(delegate {
 
+                int idx;
+
                 while (true)
                 {
+                    idx = 0;
+
                     foreach (TcpClient item in tcpClient)
-                    {
+                    {                        
                         if (item.Connected)
                         {
-                            str = item.Client.LocalEndPoint.ToString();
-                            item.GetStream().BeginWrite(Encoding.ASCII.GetBytes(str), 0, str.Length, null, null);
-                            IAsyncResult iar = item.GetStream().BeginRead(buf, 0, buf.Length, null, null);
-                            item.GetStream().EndRead(iar);
-                            //item.GetStream().Write(Encoding.ASCII.GetBytes(str),0,str.Length);
-                            //item.GetStream().Read(buf,0,buf.Length);
+                            idx++;
+                            str = idx.ToString(); ;
+
+                            IAsyncResult iar1 = item.GetStream().BeginWrite(Encoding.ASCII.GetBytes(str), 0, str.Length, null, null);
+                            item.GetStream().EndWrite(iar1);
+
+                            IAsyncResult iar2 = item.GetStream().BeginRead(buf, 0, buf.Length, null, null);
+                            item.GetStream().EndRead(iar2);
+
                             this.Invoke(new EventHandler(delegate
                             {
-                                this.listBox2.Items.Add("Client : " + item.Client.LocalEndPoint + "  " + Encoding.ASCII.GetString(buf));
+                                this.listBox2.Items.Add("Client : " + Encoding.ASCII.GetString(buf));
+                                this.listBox2.SelectedIndex = this.listBox2.Items.Count - 1;
                             }));
                         }
                     }
 
+                    Thread.Sleep(100);
+
                     if (__stop)
                     {
+                        this.Invoke(new EventHandler(delegate
+                        {
+                            this.listBox1.Items.Clear();
+                            this.listBox2.Items.Clear();
+                            this.listBox2.Items.Add("Close");
+                            this.listBox2.SelectedIndex = this.listBox2.Items.Count - 1;
+                        }));
+
                         for (int i = 0; i < tcpClient.Length; i++)
                         {
                             tcpClient[i].Close();

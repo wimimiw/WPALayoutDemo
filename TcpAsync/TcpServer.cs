@@ -9,6 +9,14 @@ namespace TcpAsync
 {
     public class TcpServer
     {
+        public class CtrlMemb
+        {
+            public List<Byte> Tst = new List<byte>();
+            public Byte[] Rev = new Byte[512];
+            public StringBuilder Revs = new StringBuilder(256);
+            public ManualResetEvent Mre = new ManualResetEvent(false);
+        }
+
         object __objLock = new object();
         TcpListener __tcpListener;
         List<TcpClient> __clientList;
@@ -18,6 +26,8 @@ namespace TcpAsync
         Dictionary<TcpClient, Byte[]> __dtRev = new Dictionary<TcpClient, Byte[]>();
         Dictionary<TcpClient, StringBuilder> __dtRevs = new Dictionary<TcpClient, StringBuilder>();
         Dictionary<TcpClient, ManualResetEvent> __dtMRE = new Dictionary<TcpClient, ManualResetEvent>();
+
+        Dictionary<TcpClient, CtrlMemb> __dtCtrl = new Dictionary<TcpClient, CtrlMemb>();
 
         public delegate void OnClientCallEventHandel(TcpClient tc,string str);
         public delegate void OnClientCloseEventHandel(TcpClient tc);
@@ -34,7 +44,7 @@ namespace TcpAsync
         /// <param name="port"></param>
         public TcpServer(string ip,int port)
         {
-            __clientList = new List<TcpClient>();
+            //__clientList = new List<TcpClient>();
             __tcpListener = new TcpListener(IPAddress.Parse(ip),port);
         }
 
@@ -98,15 +108,13 @@ namespace TcpAsync
 
         public void Send(TcpClient tc,string str)
         {
-            lock(__objLock)
-            {
-                this.__dtTst[tc].AddRange(Encoding.ASCII.GetBytes(str));
-            }
+            //this.__dtTst[tc].AddRange(Encoding.ASCII.GetBytes(str));
 
-            tc.GetStream().BeginWrite(
-                this.__dtTst[tc].ToArray(), 0,
-                this.__dtTst[tc].Count,
-                new AsyncCallback(AsyncCallBackWrite), tc);
+            //tc.GetStream().BeginWrite(
+            //    this.__dtTst[tc].ToArray(), 0,
+            //    this.__dtTst[tc].Count,
+            //    new AsyncCallback(AsyncCallBackWrite), tc);
+            tc.GetStream().BeginWrite(Encoding.ASCII.GetBytes(str),0,str.Length,new AsyncCallback(AsyncCallBackWrite),tc);
         }
 
         //异步中断函数只用事件发生时才响应
@@ -118,12 +126,9 @@ namespace TcpAsync
                 TcpClient tc = tl.EndAcceptTcpClient(iar);
                 
                 Byte[] buf = new Byte[512];
-                //Byte[] tbuf = new Byte[512];
-                this.__clientList.Add(tc);
-                this.__dtRev.Add(tc, buf);
-                this.__dtTst.Add(tc, new List<Byte>());
-                this.__dtRevs.Add(tc,new StringBuilder(512));
-                this.__dtMRE.Add(tc, new ManualResetEvent(false));
+                CtrlMemb cm = new CtrlMemb();
+                cm.Rev = buf;
+                this.__dtCtrl.Add(tc,cm);
 
                 tc.GetStream().BeginRead(buf,0,buf.Length,new AsyncCallback(AsyncCallBackRead),tc);
                 //tc.GetStream().BeginWrite(tbuf, 0, 0, new AsyncCallback(AsyncCallBackWrite), tc);
@@ -150,7 +155,7 @@ namespace TcpAsync
                 TcpClient tc = iar.AsyncState as TcpClient;
                 NetworkStream ns = tc.GetStream();
                 ns.EndWrite(iar);
-                this.__dtTst[tc].Clear();
+                //this.__dtTst[tc].Clear();
             }
             catch
             {
@@ -166,38 +171,31 @@ namespace TcpAsync
                 TcpClient tc = iar.AsyncState as TcpClient;
                 NetworkStream ns = tc.GetStream();
                 int revCnt = ns.EndRead(iar);
-                Byte[] buf = __dtRev[tc];
+                Byte[] buf = this.__dtCtrl[tc].Rev;
                 string data = "";
                 
                 data = String.Concat(data, Encoding.ASCII.GetString(buf, 0, revCnt));
 
-                this.__dtRevs[tc] = new StringBuilder(data);
+                this.__dtCtrl[tc].Revs = new StringBuilder(data);
 
                 ns.BeginRead(buf, 0, buf.Length, new AsyncCallback(AsyncCallBackRead), tc);
 
                 if (this.OnClientRead != null) 
                     this.OnClientRead(tc,data);
 
-                this.__dtMRE[tc].Set();
+                this.__dtCtrl[tc].Mre.Set();
             }
             catch
             {
                 TcpClient tc = iar.AsyncState as TcpClient;
 
-                if (!tc.Client.Connected)
-                {
-                    this.__dtRev.Remove(tc);
-                    this.__dtTst.Remove(tc);
-                    this.__dtMRE.Remove(tc);
-                    this.__dtRevs.Remove(tc);
-                    //this.__clientList.Remove(tc);
-                }
+                this.__dtCtrl.Remove(tc);
 
                 if (this.OnClientClose != null) 
                     this.OnClientClose(tc);
 
                 if (tc != null)
-                    tc.Close();
+                    tc.Close();                
             }
         }
     }
