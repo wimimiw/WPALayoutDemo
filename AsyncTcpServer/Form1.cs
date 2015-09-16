@@ -58,12 +58,15 @@ namespace AsyncTcpServer
                             idx++;
                             str = idx.ToString(); ;
 
-                            IAsyncResult iar1 = item.GetStream().BeginWrite(Encoding.UTF8.GetBytes(str), 0, str.Length, null, null);
+                            IAsyncResult iar1 = item.GetStream().BeginWrite(Encoding.UTF8.GetBytes(str), 0, str.Length, new AsyncCallback(delegate{
+                                 
+                            }), null);
+
                             IAsyncResult iar2 = item.GetStream().BeginRead(buf, 0, buf.Length, new AsyncCallback(delegate{
                                 
                                 this.BeginInvoke(new EventHandler(delegate
                                 {
-                                    this.listBox2.Items.Add("Client : " + Encoding.UTF8.GetString(buf).TrimEnd('\0') + "  PRESURE = " + idx);
+                                    this.listBox2.Items.Add("Client : Send " + Encoding.UTF8.GetString(buf).TrimEnd('\0') + " Pressure = " + idx);
                                     this.listBox2.SelectedIndex = this.listBox2.Items.Count - 1;
                                 }));                           
 
@@ -117,6 +120,8 @@ namespace AsyncTcpServer
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine("ABC");
+
             server = new AsyncTcpServer(IPAddress.Parse("127.0.0.1"), 9999);
             server.Encoding = Encoding.UTF8;
             server.ClientConnected += server_ClientConnected;
@@ -131,9 +136,17 @@ namespace AsyncTcpServer
 
             string endpoint = e.TcpClient.Client.LocalEndPoint.ToString();
 
+            //异步处理，但别用e中的元素，因为可能其会失效
+            //EventHandler eh = new EventHandler(delegate {
+            //    Thread.Sleep(3000);
+            //    MessageBox.Show("EventHandler");
+            //});
+
+            //eh.BeginInvoke(null, null, null, null);
+
             this.BeginInvoke(new EventHandler(delegate
             {
-                this.listBox1.Items.Add("Server : rev " + endpoint + "  " + Encoding.UTF8.GetString(e.Datagram));
+                this.listBox1.Items.Add("Server : Rev " + endpoint + "  " + Encoding.UTF8.GetString(e.Datagram));
                 this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;
             }));
             //throw new NotImplementedException();
@@ -141,11 +154,11 @@ namespace AsyncTcpServer
 
         void server_ClientDisconnected(object sender, TcpClientDisconnectedEventArgs e)
         {
-            string endpoint = e.TcpClient.Client.LocalEndPoint.ToString();
+            string endpoint = e.TcpClient.Client.RemoteEndPoint.ToString();
 
             this.BeginInvoke(new EventHandler(delegate
             {
-                this.listBox1.Items.Add("Server : close " + endpoint);
+                this.listBox1.Items.Add("Server : Close " + endpoint);
                 this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;
             }));
             //throw new NotImplementedException();
@@ -153,7 +166,7 @@ namespace AsyncTcpServer
 
         void server_ClientConnected(object sender, TcpClientConnectedEventArgs e)
         {
-            string endpoint = e.TcpClient.Client.LocalEndPoint.ToString();
+            string endpoint = e.TcpClient.Client.RemoteEndPoint.ToString();
 
             this.BeginInvoke(new EventHandler(delegate
             {
@@ -212,8 +225,16 @@ namespace AsyncTcpServer
 
         private void button3_Click(object sender, EventArgs e)
         {
-            string str = this.textBox1.Text;
+            string str = this.textBox1.Text + " " + DateTime.Now.ToLocalTime();
             Byte[] buf = new Byte[256];
+
+            //MethodInvoker method = new MethodInvoker(delegate
+            //{
+            //    Thread.Sleep(4000);
+            //    MessageBox.Show("MethodInvoker");
+            //});
+
+            //method.BeginInvoke(null, null);
 
             if (__userTcpClient != null && __userTcpClient.Connected)
             {
@@ -223,38 +244,7 @@ namespace AsyncTcpServer
                 this.listBox3.Items.Add(DateTime.Now.ToLocalTime() + "  " + str);
                 this.listBox3.Items.Add(DateTime.Now.ToLocalTime() + "  " + Encoding.ASCII.GetString(buf));
                 this.listBox3.SelectedIndex = this.listBox3.Items.Count - 1;
-            }
+            }            
         }
-
-        //     Console.WriteLine("TCP server has been started.");
-        //     Console.WriteLine("Type something to send to client...");
-        //     while (true)
-        //     {
-        //       string text = Console.ReadLine();
-        //       server.SendAll(text);
-        //     }
-        //   }
-        //   static void server_ClientConnected(object sender, TcpClientConnectedEventArgs e)
-        //   {
-        //     Logger.Debug(string.Format(CultureInfo.InvariantCulture, 
-        //       "TCP client {0} has connected.", 
-        //       e.TcpClient.Client.RemoteEndPoint.ToString()));
-        //   }
-        //   static void server_ClientDisconnected(object sender, TcpClientDisconnectedEventArgs e)
-        //   {
-        //     Logger.Debug(string.Format(CultureInfo.InvariantCulture, 
-        //       "TCP client {0} has disconnected.", 
-        //       e.TcpClient.Client.RemoteEndPoint.ToString()));
-        //   }
-        //   static void server_PlaintextReceived(object sender, TcpDatagramReceivedEventArgs<string> e)
-        //   {
-        //     if (e.Datagram != "Received")
-        //     {
-        //       Console.Write(string.Format("Client : {0} --> ", 
-        //         e.TcpClient.Client.RemoteEndPoint.ToString()));
-        //       Console.WriteLine(string.Format("{0}", e.Datagram));
-        //       server.Send(e.TcpClient, "Server has received you text : " + e.Datagram);
-        //     }
-        //   }
     }
 }

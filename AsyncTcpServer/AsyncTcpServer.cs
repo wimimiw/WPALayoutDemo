@@ -358,8 +358,12 @@ namespace AsyncTcpServer
         private void RaiseDatagramReceived(TcpClient sender, byte[] datagram)
         {
             if (DatagramReceived != null)
-            {
-                DatagramReceived(this, new TcpDatagramReceivedEventArgs<byte[]>(sender, datagram));
+            { 
+                //EventHandler eh = new EventHandler(delegate {
+                    DatagramReceived(this, new TcpDatagramReceivedEventArgs<byte[]>(sender, datagram));                        
+                //});
+
+                //eh.BeginInvoke(null,null,null,null);
             }
         }
 
@@ -367,8 +371,13 @@ namespace AsyncTcpServer
         {
             if (PlaintextReceived != null)
             {
-                PlaintextReceived(this, new TcpDatagramReceivedEventArgs<string>(
-                  sender, this.Encoding.GetString(datagram, 0, datagram.Length)));
+                //EventHandler eh = new EventHandler(delegate
+                //{
+                    PlaintextReceived(this, new TcpDatagramReceivedEventArgs<string>(
+                      sender, this.Encoding.GetString(datagram, 0, datagram.Length)));
+                //});
+
+                //eh.BeginInvoke(null, null, null, null);
             }
         }
 
@@ -385,7 +394,12 @@ namespace AsyncTcpServer
         {
             if (ClientConnected != null)
             {
-                ClientConnected(this, new TcpClientConnectedEventArgs(tcpClient));
+                //EventHandler eh = new EventHandler(delegate
+                //{
+                    ClientConnected(this, new TcpClientConnectedEventArgs(tcpClient));
+                //});
+
+                //eh.BeginInvoke(null, null, null, null);                
             }
         }
 
@@ -393,7 +407,12 @@ namespace AsyncTcpServer
         {
             if (ClientDisconnected != null)
             {
-                ClientDisconnected(this, new TcpClientDisconnectedEventArgs(tcpClient));
+                //EventHandler eh = new EventHandler(delegate
+                //{
+                    ClientDisconnected(this, new TcpClientDisconnectedEventArgs(tcpClient));
+                //});
+
+                //eh.BeginInvoke(null, null, null, null);               
             }
         }
 
@@ -474,7 +493,7 @@ namespace AsyncTcpServer
         public void Dispose()
         {
             Dispose(true);
-            //GC.SuppressFinalize(this);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
