@@ -5,44 +5,49 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Net.Sockets;
 using System.Net;
+using System.Threading;
 
 namespace AsyncTcpServer
 {
+    public class TcpClientConnectedEventArgs
+    {
+        public TcpClientConnectedEventArgs(TcpClient tcpc)
+        {
+            this.TcpClient = tcpc;
+        }
+
+        public TcpClient TcpClient { get; private set; }
+    }
+
+    public class TcpClientDisconnectedEventArgs
+    {
+        public TcpClientDisconnectedEventArgs(TcpClient tcpc)
+        {
+            this.TcpClient = tcpc;
+        }
+
+        public TcpClient TcpClient { get; private set; }
+    }
+
+    public class TcpDatagramReceivedEventArgs<T>
+    {
+        public T Datagram;
+
+        public TcpDatagramReceivedEventArgs(object obj, T dataGram)
+        {
+            this.TcpClient = obj as TcpClient;
+            Datagram = dataGram;
+        }
+
+        public TcpClient TcpClient { get; private set; }
+    }
+
     /// <summary>
     /// 异步TCP服务器
     /// </summary>
     public class AsyncTcpServer : IDisposable
     {
-        public class TcpClientConnectedEventArgs
-        {
-            public TcpClientConnectedEventArgs(TcpClient tcpc)
-            {
-                this.TcpClient = tcpc;
-            }
-            public TcpClient TcpClient;
-        }
-
-        public class TcpClientDisconnectedEventArgs
-        {
-            public TcpClientDisconnectedEventArgs(TcpClient tcpc)
-            {
-                this.TcpClient = tcpc;
-            }
-            public TcpClient TcpClient;
-        }
-
-        public class TcpDatagramReceivedEventArgs<T>
-        {
-            public TcpDatagramReceivedEventArgs(object obj,string str)
-            {
- 
-            }
-
-            public TcpDatagramReceivedEventArgs(object obj, Byte[] buf)
-            {
-
-            }
-        }
+        #region TcpClientState
 
         public class TcpClientState
         {
@@ -57,6 +62,8 @@ namespace AsyncTcpServer
             public TcpClient TcpClient;
             public NetworkStream NetworkStream;
         }
+
+        #endregion
 
         #region Fields
 
@@ -87,6 +94,14 @@ namespace AsyncTcpServer
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        ~AsyncTcpServer()
+        {
+ 
+        }
+
+        /// <summary>
         /// 异步TCP服务器
         /// </summary>
         /// <param name="localIPAddress">监听的IP地址</param>
@@ -101,6 +116,52 @@ namespace AsyncTcpServer
 
             listener = new TcpListener(Address, Port);
             listener.AllowNatTraversal(true);
+
+            Thread thrd = new Thread(new ThreadStart(
+                delegate {
+
+                    Byte[] buf = new Byte[1];
+
+                    //检测是否有死链接（网线断开）
+                    Timer timer = new Timer(new TimerCallback(delegate
+                    {
+                        if (this.IsRunning)
+                        {
+                            for (int i = 0; i < this.clients.Count; i++)
+                            {
+                                if (!this.clients[i].TcpClient.Connected) continue;
+
+                                lock (this.clients[i])
+                                {
+                                    try
+                                    {
+                                        this.clients[i].NetworkStream.Write(buf, 0, 0);
+                                    }
+                                    catch
+                                    {
+                                        this.clients[i].TcpClient.Close();
+                                        this.clients.RemoveAt(i);
+                                    }                                        
+                                }
+                            }
+                        }
+                    }),null,0,10000);
+
+                    while (true)
+                    {
+                        lock (this.clients)
+                        {
+                            this.ClientCount = this.clients.Count;
+                        }
+
+                        if (this.listener == null) break;
+
+                        Thread.Sleep(100);
+                    }
+                }
+            ));
+
+            thrd.Start();
         }
 
         #endregion
@@ -111,6 +172,10 @@ namespace AsyncTcpServer
         /// 服务器是否正在运行
         /// </summary>
         public bool IsRunning { get; private set; }
+        /// <summary>
+        /// 
+        /// </summary>
+        public int ClientCount { get; private set; }
         /// <summary>
         /// 监听的IP地址
         /// </summary>
@@ -225,45 +290,55 @@ namespace AsyncTcpServer
         {
             if (IsRunning)
             {
-                TcpClientState internalClient = (TcpClientState)ar.AsyncState;
-                NetworkStream networkStream = internalClient.NetworkStream;
-
-                int numberOfReadBytes = 0;
                 try
                 {
-                    numberOfReadBytes = networkStream.EndRead(ar);
+
+                    TcpClientState internalClient = (TcpClientState)ar.AsyncState;
+                    NetworkStream networkStream = internalClient.NetworkStream;
+
+                    int numberOfReadBytes = 0;
+                    try
+                    {
+                        numberOfReadBytes = networkStream.EndRead(ar);
+                    }
+                    catch
+                    {
+                        numberOfReadBytes = 0;
+                    }
+
+                    if (numberOfReadBytes == 0)
+                    {
+                        // connection has been closed
+                        lock (this.clients)
+                        {
+                            this.clients.Remove(internalClient);
+                            RaiseClientDisconnected(internalClient.TcpClient);
+                            internalClient.TcpClient.Close();
+                            return;
+                        }
+                    }
+
+                    // received byte and trigger event notification
+                    byte[] receivedBytes = new byte[numberOfReadBytes];
+                    Buffer.BlockCopy(
+                      internalClient.Buffer, 0,
+                      receivedBytes, 0, numberOfReadBytes);
+
+                    RaiseDatagramReceived(internalClient.TcpClient, receivedBytes);
+                    RaisePlaintextReceived(internalClient.TcpClient, receivedBytes);
+
+                    // continue listening for tcp datagram packets
+                    networkStream.BeginRead(
+                      internalClient.Buffer,
+                      0,
+                      internalClient.Buffer.Length,
+                      HandleDatagramReceived,
+                      internalClient);
                 }
                 catch
                 {
-                    numberOfReadBytes = 0;
+                    throw new ArgumentNullException("tcpClient Async Read Failed!");
                 }
-
-                if (numberOfReadBytes == 0)
-                {
-                    // connection has been closed
-                    lock (this.clients)
-                    {
-                        this.clients.Remove(internalClient);
-                        RaiseClientDisconnected(internalClient.TcpClient);
-                        return;
-                    }
-                }
-
-                // received byte and trigger event notification
-                byte[] receivedBytes = new byte[numberOfReadBytes];
-                Buffer.BlockCopy(
-                  internalClient.Buffer, 0,
-                  receivedBytes, 0, numberOfReadBytes);
-                RaiseDatagramReceived(internalClient.TcpClient, receivedBytes);
-                RaisePlaintextReceived(internalClient.TcpClient, receivedBytes);
-
-                // continue listening for tcp datagram packets
-                networkStream.BeginRead(
-                  internalClient.Buffer,
-                  0,
-                  internalClient.Buffer.Length,
-                  HandleDatagramReceived,
-                  internalClient);
             }
         }
 
@@ -399,7 +474,7 @@ namespace AsyncTcpServer
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
+            //GC.SuppressFinalize(this);
         }
 
         /// <summary>

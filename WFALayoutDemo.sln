@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WFALayoutDemo", "WFALayoutD
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Util", "Util\Util.csproj", "{E7093375-99BC-4D52-AA83-AA60905E8622}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpAsync", "TcpAsync\TcpAsync.csproj", "{AF5A4A4F-7BE8-4393-8E17-FE90ADA74C9F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpAsync_NotGood", "TcpAsync\TcpAsync_NotGood.csproj", "{AF5A4A4F-7BE8-4393-8E17-FE90ADA74C9F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestAsync", "TestAsync\TestAsync.csproj", "{476CFE0E-7795-4E0F-AFF1-B2ED9B3543B4}"
 EndProject
@@ -42,5 +42,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 EndGlobal
