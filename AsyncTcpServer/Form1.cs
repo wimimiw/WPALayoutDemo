@@ -17,7 +17,6 @@ namespace AsyncTcpServer
     {
         AsyncTcpServer server;
         bool __stop;
-        bool __exit = false;
         object __lockObj = new object();
         int __clientSum = 1000;
 
@@ -31,7 +30,7 @@ namespace AsyncTcpServer
             {
                 tcpClient[i] = new TcpClient();
                 IAsyncResult iar = tcpClient[i].BeginConnect("127.0.0.1", 9999, null, null);
-                this.BeginInvoke(new EventHandler(delegate
+                this.BeginInvoke(new MethodInvoker(delegate
                 {
                     this.listBox2.Items.Add("Client ==> ConnectTo 127.0.0.1:9999");
                     this.listBox2.SelectedIndex = this.listBox2.Items.Count - 1;
@@ -64,22 +63,20 @@ namespace AsyncTcpServer
 
                             IAsyncResult iar2 = item.GetStream().BeginRead(buf, 0, buf.Length, new AsyncCallback(delegate{
                                 
-                                this.BeginInvoke(new EventHandler(delegate
+                                this.BeginInvoke(new MethodInvoker(delegate
                                 {
-                                    this.listBox2.Items.Add("Client : Send " + Encoding.UTF8.GetString(buf).TrimEnd('\0') + " Pressure = " + idx);
+                                    this.listBox2.Items.Add("Client Thread="+Thread.CurrentThread.ManagedThreadId+" : Send " + Encoding.UTF8.GetString(buf).TrimEnd('\0') + " Pressure = " + idx);
                                     this.listBox2.SelectedIndex = this.listBox2.Items.Count - 1;
                                 }));                           
 
-                            }), null);
-
-                            if (__exit) return;
+                            }), null);                           
 
                             Thread.Sleep(20);
                         }                        
 
                         if (__stop)
                         {
-                            this.BeginInvoke(new EventHandler(delegate
+                            this.BeginInvoke(new MethodInvoker(delegate
                             {
                                 this.listBox1.Items.Clear();
                                 this.listBox2.Items.Clear();
@@ -89,7 +86,7 @@ namespace AsyncTcpServer
                             {
                                 string endpoint = tcpClient[i].Client.LocalEndPoint.ToString();
 
-                                this.BeginInvoke(new EventHandler(delegate
+                                this.BeginInvoke(new MethodInvoker(delegate
                                 {
                                     this.listBox2.Items.Add("Close : " + endpoint);
                                     this.listBox2.SelectedIndex = this.listBox2.Items.Count - 1;
@@ -110,6 +107,7 @@ namespace AsyncTcpServer
 
             }));
 
+            thrd.IsBackground = true; //由窗体负责销毁线程
             thrd.Start();
         }
 
@@ -132,45 +130,39 @@ namespace AsyncTcpServer
 
         void server_DatagramReceived(object sender, TcpDatagramReceivedEventArgs<byte[]> e)
         {
-            this.server.Send(e.TcpClient,e.TcpClient.Client.RemoteEndPoint.ToString());
-
-            string endpoint = e.TcpClient.Client.LocalEndPoint.ToString();
+            this.server.Send(e.remoteEndPoint,e.Datagram);
 
             //异步处理，但别用e中的元素，因为可能其会失效
-            //EventHandler eh = new EventHandler(delegate {
+            //MethodInvoker eh = new MethodInvoker(delegate {
             //    Thread.Sleep(3000);
-            //    MessageBox.Show("EventHandler");
+            //    MessageBox.Show("MethodInvoker");
             //});
 
             //eh.BeginInvoke(null, null, null, null);
 
-            this.BeginInvoke(new EventHandler(delegate
+            this.BeginInvoke(new MethodInvoker(delegate
             {
-                this.listBox1.Items.Add("Server : Rev " + endpoint + "  " + Encoding.UTF8.GetString(e.Datagram));
-                this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;
+                this.listBox1.Items.Add("Server Thread=" + Thread.CurrentThread.ManagedThreadId + " : Rev " + e.remoteEndPoint + "  " + Encoding.UTF8.GetString(e.Datagram));
+                this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;                
             }));
             //throw new NotImplementedException();
         }
 
         void server_ClientDisconnected(object sender, TcpClientDisconnectedEventArgs e)
-        {
-            string endpoint = e.TcpClient.Client.RemoteEndPoint.ToString();
-
-            this.BeginInvoke(new EventHandler(delegate
+        {            
+            this.BeginInvoke(new MethodInvoker(delegate
             {
-                this.listBox1.Items.Add("Server : Close " + endpoint);
+                this.listBox1.Items.Add("Server : Close " + e.remoteEndPoint);
                 this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;
             }));
             //throw new NotImplementedException();
         }
 
         void server_ClientConnected(object sender, TcpClientConnectedEventArgs e)
-        {
-            string endpoint = e.TcpClient.Client.RemoteEndPoint.ToString();
-
-            this.BeginInvoke(new EventHandler(delegate
+        {         
+            this.BeginInvoke(new MethodInvoker(delegate
             {
-                this.listBox1.Items.Add("Server ==> Accept " + endpoint);
+                this.listBox1.Items.Add("Server Thread=" + Thread.CurrentThread.ManagedThreadId + " ==> Accept " + e.remoteEndPoint);
                 this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;
             }));
             //throw new NotImplementedException();

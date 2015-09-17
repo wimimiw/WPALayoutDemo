@@ -11,35 +11,34 @@ namespace AsyncTcpServer
 {
     public class TcpClientConnectedEventArgs
     {
-        public TcpClientConnectedEventArgs(TcpClient tcpc)
+        public TcpClientConnectedEventArgs(string remoteEndPoint)
         {
-            this.TcpClient = tcpc;
+            this.remoteEndPoint = remoteEndPoint;
         }
 
-        public TcpClient TcpClient { get; private set; }
+        public string remoteEndPoint { get; private set; }
     }
 
     public class TcpClientDisconnectedEventArgs
     {
-        public TcpClientDisconnectedEventArgs(TcpClient tcpc)
+        public TcpClientDisconnectedEventArgs(string remoteEndPoint)
         {
-            this.TcpClient = tcpc;
+            this.remoteEndPoint = remoteEndPoint;
         }
 
-        public TcpClient TcpClient { get; private set; }
+        public string remoteEndPoint { get; private set; }
     }
 
     public class TcpDatagramReceivedEventArgs<T>
     {
-        public T Datagram;
+        public T Datagram{ get; private set; }
+        public string remoteEndPoint { get; private set; }
 
-        public TcpDatagramReceivedEventArgs(object obj, T dataGram)
+        public TcpDatagramReceivedEventArgs(string remoteEndPoint, T dataGram)
         {
-            this.TcpClient = obj as TcpClient;
+            this.remoteEndPoint = remoteEndPoint;
             Datagram = dataGram;
-        }
-
-        public TcpClient TcpClient { get; private set; }
+        }        
     }
 
     /// <summary>
@@ -55,10 +54,12 @@ namespace AsyncTcpServer
             {
                 this.Buffer = buf;
                 this.TcpClient = tcpc;
+                this.remoteEndPoint = tcpc.Client.RemoteEndPoint.ToString();
                 this.NetworkStream = tcpc.GetStream();
             }
 
             public Byte[] Buffer;
+            public string remoteEndPoint;
             public TcpClient TcpClient;
             public NetworkStream NetworkStream;
         }
@@ -68,8 +69,9 @@ namespace AsyncTcpServer
         #region Fields
 
         private TcpListener listener;
-        private List<TcpClientState> clients;
+        private Dictionary<string,TcpClientState> clients;
         private bool disposed = false;
+        public bool block = false;
 
         #endregion
 
@@ -112,7 +114,7 @@ namespace AsyncTcpServer
             Port = listenPort;
             this.Encoding = Encoding.Default;
 
-            clients = new List<TcpClientState>();
+            clients = new Dictionary<string, TcpClientState>();
 
             listener = new TcpListener(Address, Port);
             listener.AllowNatTraversal(true);
@@ -127,22 +129,22 @@ namespace AsyncTcpServer
                     {
                         if (this.IsRunning)
                         {
-                            for (int i = 0; i < this.clients.Count; i++)
+                            foreach (var item in this.clients)
                             {
-                                if (!this.clients[i].TcpClient.Connected) continue;
+                                if (!item.Value.TcpClient.Connected) continue;
 
-                                lock (this.clients[i])
+                                lock (item.Value)
                                 {
                                     try
                                     {
-                                        this.clients[i].NetworkStream.Write(buf, 0, 0);
+                                        item.Value.NetworkStream.Write(buf, 0, 0);
                                     }
                                     catch
                                     {
-                                        this.clients[i].TcpClient.Close();
-                                        this.clients.RemoveAt(i);
-                                    }                                        
-                                }
+                                        item.Value.TcpClient.Close();
+                                        this.clients.Remove(item.Key);
+                                    }
+                                }                                
                             }
                         }
                     }),null,0,10000);
@@ -241,9 +243,9 @@ namespace AsyncTcpServer
 
                 lock (this.clients)
                 {
-                    for (int i = 0; i < this.clients.Count; i++)
+                    foreach (var item in this.clients)
                     {
-                        this.clients[i].TcpClient.Client.Disconnect(false);
+                        item.Value.TcpClient.Client.Disconnect(false);
                     }
                     this.clients.Clear();
                 }
@@ -267,10 +269,11 @@ namespace AsyncTcpServer
 
                 TcpClientState internalClient
                   = new TcpClientState(tcpClient, buffer);
+
                 lock (this.clients)
                 {
-                    this.clients.Add(internalClient);
-                    RaiseClientConnected(tcpClient);
+                    this.clients.Add(internalClient.remoteEndPoint, internalClient);
+                    RaiseClientConnected(internalClient.remoteEndPoint);
                 }
 
                 NetworkStream networkStream = internalClient.NetworkStream;
@@ -292,7 +295,6 @@ namespace AsyncTcpServer
             {
                 try
                 {
-
                     TcpClientState internalClient = (TcpClientState)ar.AsyncState;
                     NetworkStream networkStream = internalClient.NetworkStream;
 
@@ -311,8 +313,8 @@ namespace AsyncTcpServer
                         // connection has been closed
                         lock (this.clients)
                         {
-                            this.clients.Remove(internalClient);
-                            RaiseClientDisconnected(internalClient.TcpClient);
+                            this.clients.Remove(internalClient.remoteEndPoint);
+                            RaiseClientDisconnected(internalClient.remoteEndPoint);
                             internalClient.TcpClient.Close();
                             return;
                         }
@@ -324,8 +326,8 @@ namespace AsyncTcpServer
                       internalClient.Buffer, 0,
                       receivedBytes, 0, numberOfReadBytes);
 
-                    RaiseDatagramReceived(internalClient.TcpClient, receivedBytes);
-                    RaisePlaintextReceived(internalClient.TcpClient, receivedBytes);
+                    RaiseDatagramReceived(internalClient.remoteEndPoint, receivedBytes);
+                    RaisePlaintextReceived(internalClient.remoteEndPoint, receivedBytes);
 
                     // continue listening for tcp datagram packets
                     networkStream.BeginRead(
@@ -355,29 +357,45 @@ namespace AsyncTcpServer
         /// </summary>
         public event EventHandler<TcpDatagramReceivedEventArgs<string>> PlaintextReceived;
 
-        private void RaiseDatagramReceived(TcpClient sender, byte[] datagram)
+        private void RaiseDatagramReceived(string remoteEndPoint, byte[] datagram)
         {
             if (DatagramReceived != null)
-            { 
-                //EventHandler eh = new EventHandler(delegate {
-                    DatagramReceived(this, new TcpDatagramReceivedEventArgs<byte[]>(sender, datagram));                        
-                //});
+            {
+                if (this.block)
+                {
+                    DatagramReceived(this, new TcpDatagramReceivedEventArgs<byte[]>(remoteEndPoint, datagram));
+                }
+                else
+                {
+                    EventHandler eh = new EventHandler(delegate
+                    {
+                        DatagramReceived(this, new TcpDatagramReceivedEventArgs<byte[]>(remoteEndPoint, datagram));
+                    });
 
-                //eh.BeginInvoke(null,null,null,null);
+                    eh.BeginInvoke(null, null, null, null);
+                }
             }
         }
 
-        private void RaisePlaintextReceived(TcpClient sender, byte[] datagram)
+        private void RaisePlaintextReceived(string remoteEndPoint, byte[] datagram)
         {
             if (PlaintextReceived != null)
             {
-                //EventHandler eh = new EventHandler(delegate
-                //{
+                if (this.block)
+                {
                     PlaintextReceived(this, new TcpDatagramReceivedEventArgs<string>(
-                      sender, this.Encoding.GetString(datagram, 0, datagram.Length)));
-                //});
+                      remoteEndPoint, this.Encoding.GetString(datagram, 0, datagram.Length)));
+                }
+                else
+                {
+                    EventHandler eh = new EventHandler(delegate
+                    {
+                        PlaintextReceived(this, new TcpDatagramReceivedEventArgs<string>(
+                          remoteEndPoint, this.Encoding.GetString(datagram, 0, datagram.Length)));
+                    });
 
-                //eh.BeginInvoke(null, null, null, null);
+                    eh.BeginInvoke(null, null, null, null);
+                }
             }
         }
 
@@ -390,29 +408,43 @@ namespace AsyncTcpServer
         /// </summary>
         public event EventHandler<TcpClientDisconnectedEventArgs> ClientDisconnected;
 
-        private void RaiseClientConnected(TcpClient tcpClient)
+        private void RaiseClientConnected(string remoteEndPoint)
         {
             if (ClientConnected != null)
             {
-                //EventHandler eh = new EventHandler(delegate
-                //{
-                    ClientConnected(this, new TcpClientConnectedEventArgs(tcpClient));
-                //});
+                if (this.block)
+                {
+                    ClientConnected(this, new TcpClientConnectedEventArgs(remoteEndPoint));
+                }
+                else
+                {
+                    EventHandler eh = new EventHandler(delegate
+                    {
+                        ClientConnected(this, new TcpClientConnectedEventArgs(remoteEndPoint));
+                    });
 
-                //eh.BeginInvoke(null, null, null, null);                
+                    eh.BeginInvoke(null, null, null, null);
+                }
             }
         }
 
-        private void RaiseClientDisconnected(TcpClient tcpClient)
+        private void RaiseClientDisconnected(string remoteEndPoint)
         {
             if (ClientDisconnected != null)
             {
-                //EventHandler eh = new EventHandler(delegate
-                //{
-                    ClientDisconnected(this, new TcpClientDisconnectedEventArgs(tcpClient));
-                //});
+                if (this.block)
+                {
+                    ClientDisconnected(this, new TcpClientDisconnectedEventArgs(remoteEndPoint));
+                }
+                else
+                {
+                    EventHandler eh = new EventHandler(delegate
+                    {
+                        ClientDisconnected(this, new TcpClientDisconnectedEventArgs(remoteEndPoint));
+                    });
 
-                //eh.BeginInvoke(null, null, null, null);               
+                    eh.BeginInvoke(null, null, null, null);
+                }
             }
         }
 
@@ -425,8 +457,10 @@ namespace AsyncTcpServer
         /// </summary>
         /// <param name="tcpClient">客户端</param>
         /// <param name="datagram">报文</param>
-        public void Send(TcpClient tcpClient, byte[] datagram)
+        public void Send(string remoteEndPoint, byte[] datagram)
         {
+            TcpClient tcpClient = this.clients[remoteEndPoint].TcpClient;
+
             if (!IsRunning)
                 throw new InvalidProgramException("This TCP server has not been started.");
 
@@ -450,9 +484,9 @@ namespace AsyncTcpServer
         /// </summary>
         /// <param name="tcpClient">客户端</param>
         /// <param name="datagram">报文</param>
-        public void Send(TcpClient tcpClient, string datagram)
+        public void Send(string remoteEndPoint, string datagram)
         {
-            Send(tcpClient, this.Encoding.GetBytes(datagram));
+            Send(remoteEndPoint, this.Encoding.GetBytes(datagram));
         }
 
         /// <summary>
@@ -464,9 +498,9 @@ namespace AsyncTcpServer
             if (!IsRunning)
                 throw new InvalidProgramException("This TCP server has not been started.");
 
-            for (int i = 0; i < this.clients.Count; i++)
+            foreach (var item in this.clients)
             {
-                Send(this.clients[i].TcpClient, datagram);
+                Send(item.Key, datagram);
             }
         }
 
