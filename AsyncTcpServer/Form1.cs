@@ -143,7 +143,7 @@ namespace AsyncTcpServer
             this.BeginInvoke(new MethodInvoker(delegate
             {
                 this.listBox1.Items.Add("Server Thread=" + Thread.CurrentThread.ManagedThreadId + " : Rev " + e.remoteEndPoint + "  " + Encoding.UTF8.GetString(e.Datagram));
-                this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;                
+                this.listBox1.SelectedIndex = this.listBox1.Items.Count - 1;
             }));
             //throw new NotImplementedException();
         }

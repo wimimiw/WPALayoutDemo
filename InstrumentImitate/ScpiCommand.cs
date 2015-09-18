@@ -94,7 +94,7 @@ namespace InstrumentImitate
         /// </summary>
         /// <param name="cmd"></param>
         /// <returns></returns>
-        public float CommandSetAnaylzer(string cmd)
+        protected float CommandSetAnaylzer(string cmd)
         {  
             //^[+-]?\d+(\.\d+)?$    匹配任意有可选符号的实数。
             //"^\d+$"　　//非负整数（正整数 + 0） 
@@ -142,7 +142,18 @@ namespace InstrumentImitate
             Regex rgx = new Regex(pattern);
             Match match = rgx.Match(cmd);
 
-            return match.Success ? float.Parse(match.Value)*factor :float.MaxValue;
+            if (cmd.Contains("on"))
+            {
+                return 1f;
+            }
+            else if (cmd.Contains("off"))
+            {
+                return 0f;
+            }
+            else
+            {
+                return match.Success ? float.Parse(match.Value) * factor : float.MaxValue;
+            }
         }
 
         private string Scpi_Idn()
@@ -161,6 +172,20 @@ namespace InstrumentImitate
             this.__sre = 0;
 
             return "+1";
+        }
+
+        private string Scpi_Err()
+        {
+            StringBuilder sb = new StringBuilder(512);
+
+            sb.Append("+1");
+
+            foreach (var item in this.__errList)
+            {
+                sb.Append(item+",");
+            }
+
+            return sb.ToString(); ;
         }
 
         protected string Scpi_Opc()
@@ -185,7 +210,10 @@ namespace InstrumentImitate
 
         protected void SetSRE()
         {
-            this.__sre = 0x01;
+            lock(this)
+            {
+                this.__sre = 0x01;
+            }
         }
 
         protected void ClsSRE()
@@ -197,7 +225,7 @@ namespace InstrumentImitate
         /// 
         /// </summary>
         /// <param name="str"></param>
-        public void CommandPacketSend(string endPoint,string str)
+        private void CommandPacketSend(string endPoint,string str)
         {
             __server.Send(endPoint, str);
         }
@@ -205,7 +233,7 @@ namespace InstrumentImitate
         /// //
         /// </summary>
         /// <param name="cmd"></param>
-        public void CommandPacketUnpack(string endPoint,string cmd)
+        private void CommandPacketUnpack(string endPoint,string cmd)
         {
             if (!cmd.Contains("\r\n"))
             {
@@ -227,6 +255,8 @@ namespace InstrumentImitate
 
             foreach (var item in cmdList)
             {
+                if (item.Contains("*ERR?")) returnValue = Scpi_Err();
+                else
                 if (item.Contains("*IDN?")) returnValue = Scpi_Idn();
                 else
                     if (item.Contains("*OPC?")) returnValue = Scpi_OpcWait();
@@ -251,11 +281,14 @@ namespace InstrumentImitate
     {
         public JcSpectrum(string idn)
         {
- 
+            base.__idn = idn;
+            //init
         }
 
         protected override string Scpi_OpcWait()
         {
+            System.Threading.Thread.Sleep(2000);
+
             return base.Scpi_OpcWait();
         }
 
@@ -266,27 +299,71 @@ namespace InstrumentImitate
 
         protected override string User_CommandPcs(string cmd)
         {
-            //:CENT
-            //:SPAN
-            //:BWID
-            //:RES
-            //:VID
-            //:STAT
-            //:OPER
-            //:CALC
-            //:MARK
-            //:MAX
+            cmd = cmd.ToUpper();
 
-            return "";
+            string returnValue = "+1";
+
+            float value = base.CommandSetAnaylzer(cmd);
+
+            if (cmd.Contains("CENT"))
+            {
+
+            }
+            else if (cmd.Contains("SPAN"))
+            {
+
+            }
+            else if (cmd.Contains("BWID"))
+            {
+
+            }
+            else if (cmd.Contains("RES"))
+            {
+
+            }
+            else if (cmd.Contains("VID"))
+            {
+
+            }
+            else if (cmd.Contains("STAT"))
+            {
+
+            }
+            else if (cmd.Contains("STOP"))
+            {
+
+            }
+            else if (cmd.Contains("CALC:X"))
+            {
+
+            }
+            else if (cmd.Contains("CALC:Y?"))
+            {
+                EventHandler eh = new EventHandler(delegate {
+                    base.ClsSRE();
+
+                    //Operation
+
+                    base.SetSRE();
+                });
+
+                eh.BeginInvoke(null,null,null,null);
+
+                returnValue = (-178.5).ToString();
+            }
+
+            Console.WriteLine(value.ToString());
+
+            return returnValue;
             //return base.User_CommandPcs(cmd);
         }
     }
 
     class JcSigGener : ScpiCommand
     {
-        public JcSigGener()
+        public JcSigGener(string idn)
         {
- 
+            base.__idn = idn;
         }
 
         protected override string Scpi_OpcWait()
@@ -301,11 +378,28 @@ namespace InstrumentImitate
 
         protected override string User_CommandPcs(string cmd)
         {
-            //:POW
-            //:FREQ
-            //:REF
+            cmd = cmd.ToUpper();
 
-            return "";
+            string returnValue = "+1";
+
+            float value = base.CommandSetAnaylzer(cmd);
+
+            if (cmd.Contains("POW"))
+            {
+
+            }
+            else if (cmd.Contains("FREQ"))
+            {
+
+            }
+            else if (cmd.Contains("REF:EXT"))
+            {
+
+            }
+
+            Console.WriteLine(value.ToString());
+
+            return returnValue;
             //return base.User_CommandPcs(cmd);
         }
     }

@@ -9,7 +9,7 @@ using System.Threading;
 
 namespace AsyncTcpServer
 {
-    public class TcpClientConnectedEventArgs
+    public class TcpClientConnectedEventArgs:EventArgs
     {
         public TcpClientConnectedEventArgs(string remoteEndPoint)
         {
@@ -19,7 +19,7 @@ namespace AsyncTcpServer
         public string remoteEndPoint { get; private set; }
     }
 
-    public class TcpClientDisconnectedEventArgs
+    public class TcpClientDisconnectedEventArgs:EventArgs
     {
         public TcpClientDisconnectedEventArgs(string remoteEndPoint)
         {
@@ -29,7 +29,7 @@ namespace AsyncTcpServer
         public string remoteEndPoint { get; private set; }
     }
 
-    public class TcpDatagramReceivedEventArgs<T>
+    public class TcpDatagramReceivedEventArgs<T>:EventArgs
     {
         public T Datagram{ get; private set; }
         public string remoteEndPoint { get; private set; }
@@ -367,12 +367,12 @@ namespace AsyncTcpServer
                 }
                 else
                 {
-                    EventHandler eh = new EventHandler(delegate
-                    {
-                        DatagramReceived(this, new TcpDatagramReceivedEventArgs<byte[]>(remoteEndPoint, datagram));
-                    });
+                    EventHandler eh = new EventHandler(delegate{});
 
-                    eh.BeginInvoke(null, null, null, null);
+                    eh.BeginInvoke(null, null, new AsyncCallback(delegate(IAsyncResult iar) {
+                        DatagramReceived(this, new TcpDatagramReceivedEventArgs<byte[]>(remoteEndPoint, datagram));
+                        eh.EndInvoke(iar);                    
+                    }), null);
                 }
             }
         }

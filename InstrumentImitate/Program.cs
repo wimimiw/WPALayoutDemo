@@ -9,15 +9,11 @@ namespace InstrumentImitate
         static void Main(string[] args)
         {
             ScpiCommand sc = new JcSpectrum("");
-
-            //float tt = sc.CommandSetAnaylzer(":FRE 1800 MHZ");
-
-            //tt = sc.CommandSetAnaylzer(":FRE -56.3 DBM");
-
-            //sc.CommandPacketUnpack("*IDN?\n\r");
+            ScpiCommand sg = new JcSigGener("");
 
             sc.StartServer("127.0.0.1", 9999);
-
+            sg.StartServer("127.0.0.1", 8888);
+            
             while (true) ;
         }
     }
