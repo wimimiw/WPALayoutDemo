@@ -365,12 +365,12 @@ namespace InstrumentImitate
                 }
                 else
                 {
-                    EventHandler eh = new EventHandler(delegate
-                    {
-                        DatagramReceived(this, new TcpDatagramReceivedEventArgs<byte[]>(remoteEndPoint, datagram));
-                    });
+                    EventHandler eh = new EventHandler(delegate{});
 
-                    eh.BeginInvoke(null, null, null, null);
+                    eh.BeginInvoke(null, null, new AsyncCallback(delegate(IAsyncResult iar) {
+                        DatagramReceived(this, new TcpDatagramReceivedEventArgs<byte[]>(remoteEndPoint, datagram));
+                        eh.EndInvoke(iar);                    
+                    }), null);
                 }
             }
         }
@@ -386,13 +386,15 @@ namespace InstrumentImitate
                 }
                 else
                 {
-                    EventHandler eh = new EventHandler(delegate
-                    {
+                    EventHandler eh = new EventHandler(delegate{});
+
+                    eh.BeginInvoke(null,null,new AsyncCallback(delegate(IAsyncResult iar) {
+
                         PlaintextReceived(this, new TcpDatagramReceivedEventArgs<string>(
                           remoteEndPoint, this.Encoding.GetString(datagram, 0, datagram.Length)));
-                    });
 
-                    eh.BeginInvoke(null, null, null, null);
+                        eh.EndInvoke(iar);   
+                    }),null);
                 }
             }
         }
@@ -416,12 +418,20 @@ namespace InstrumentImitate
                 }
                 else
                 {
-                    EventHandler eh = new EventHandler(delegate
+                    //EventHandler eh = new EventHandler(delegate
+                    //{
+                    //    ClientConnected(this, new TcpClientConnectedEventArgs(remoteEndPoint));
+                    //});
+
+                    //eh.BeginInvoke(null, null, null, null);
+
+                    EventHandler eh = new EventHandler(delegate { });
+
+                    eh.BeginInvoke(null, null, new AsyncCallback(delegate(IAsyncResult iar)
                     {
                         ClientConnected(this, new TcpClientConnectedEventArgs(remoteEndPoint));
-                    });
-
-                    eh.BeginInvoke(null, null, null, null);
+                        eh.EndInvoke(iar);
+                    }), null);
                 }
             }
         }
@@ -436,12 +446,20 @@ namespace InstrumentImitate
                 }
                 else
                 {
-                    EventHandler eh = new EventHandler(delegate
+                    //EventHandler eh = new EventHandler(delegate
+                    //{
+                    //    ClientDisconnected(this, new TcpClientDisconnectedEventArgs(remoteEndPoint));
+                    //});
+
+                    //eh.BeginInvoke(null, null, null, null);
+
+                    EventHandler eh = new EventHandler(delegate { });
+
+                    eh.BeginInvoke(null, null, new AsyncCallback(delegate(IAsyncResult iar)
                     {
                         ClientDisconnected(this, new TcpClientDisconnectedEventArgs(remoteEndPoint));
-                    });
-
-                    eh.BeginInvoke(null, null, null, null);
+                        eh.EndInvoke(iar);
+                    }), null);
                 }
             }
         }

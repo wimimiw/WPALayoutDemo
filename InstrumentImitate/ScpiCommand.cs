@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Text;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using SpectrumLib;
+using SpectrumLib.Models;
 
 //4.3.1 IEEE488.2 共同命令
 //*CLS
@@ -257,19 +259,19 @@ namespace InstrumentImitate
             {
                 if (item.Contains("*ERR?")) returnValue = Scpi_Err();
                 else
-                if (item.Contains("*IDN?")) returnValue = Scpi_Idn();
-                else
-                    if (item.Contains("*OPC?")) returnValue = Scpi_OpcWait();
+                    if (item.Contains("*IDN?")) returnValue = Scpi_Idn();
                     else
-                        if (item.Contains("*SRE?")) returnValue = Scpi_Sre();
+                        if (item.Contains("*OPC?")) returnValue = Scpi_OpcWait();
                         else
-                            if (item.Contains("*OPC")) returnValue = Scpi_Opc();
+                            if (item.Contains("*SRE?")) returnValue = Scpi_Sre();
                             else
-                                if (item.Contains("*CLS")) returnValue = Scpi_Cls();
+                                if (item.Contains("*OPC")) returnValue = Scpi_Opc();
                                 else
-                                    if (item.Contains("*RST")) returnValue = Scpi_Rst();
+                                    if (item.Contains("*CLS")) returnValue = Scpi_Cls();
                                     else
-                                        returnValue = User_CommandPcs(item);
+                                        if (item.Contains("*RST")) returnValue = Scpi_Rst();
+                                        else
+                                            returnValue = User_CommandPcs(item);
             }
 
             CommandPacketSend(endPoint,returnValue+"\r\n");
@@ -304,6 +306,8 @@ namespace InstrumentImitate
             string returnValue = "+1";
 
             float value = base.CommandSetAnaylzer(cmd);
+
+            ScanModel scanModel = new ScanModel();
 
             if (cmd.Contains("CENT"))
             {
@@ -384,18 +388,26 @@ namespace InstrumentImitate
 
             float value = base.CommandSetAnaylzer(cmd);
 
+            RFSignal.RFClear(0,RFPriority.LvlTwo);
+
             if (cmd.Contains("POW"))
             {
-
+                RFSignal.RFPower(0, RFPriority.LvlTwo, value);
             }
             else if (cmd.Contains("FREQ"))
             {
-
+                RFSignal.RFFreq(0, RFPriority.LvlTwo, value);
             }
             else if (cmd.Contains("REF:EXT"))
             {
-
+                
             }
+            else if (cmd.Contains("OUTP"))
+            {
+                //RFSignal.rfo
+            }
+
+            RFSignal.RFStart(0);
 
             Console.WriteLine(value.ToString());
 
