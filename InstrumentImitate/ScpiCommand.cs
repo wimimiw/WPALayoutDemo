@@ -257,8 +257,10 @@ namespace InstrumentImitate
 
             foreach (var item in cmdList)
             {
-                if (item.Contains("*ERR?")) returnValue = Scpi_Err();
+                if (item.Contains("ECHO"));
                 else
+                   if (item.Contains("*ERR?")) returnValue = Scpi_Err();
+                   else
                     if (item.Contains("*IDN?")) returnValue = Scpi_Idn();
                     else
                         if (item.Contains("*OPC?")) returnValue = Scpi_OpcWait();
